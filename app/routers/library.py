@@ -5,6 +5,7 @@ from ..models import Game, Library, User
 from ..config import settings
 from ..oauth2 import get_current_user  # Import current user dependency
 import httpx
+import random
 from .. import schemas
 from sqlalchemy.orm import selectinload
 
@@ -94,3 +95,112 @@ async def get_user_library(
     
     library_entries = db.exec(statement).all()
     return library_entries
+
+@router.post("/manual", status_code=status.HTTP_201_CREATED)
+async def add_manual_game(
+    game_data: schemas.ManualGameAdd,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    # 1. Search the global cache to see if this game title already exists
+    # We use .ilike() for a case-insensitive search (e.g., "minecraft" matches "Minecraft")
+    game = db.exec(select(Game).where(Game.title.ilike(game_data.title))).first()
+    
+    # 2. If it doesn't exist globally, create it with a custom negative ID
+    if not game:
+        # Generate a random negative number to prevent clashing with Steam IDs
+        custom_external_id = -random.randint(100000, 9999999)
+        
+        game = Game(
+            external_id=custom_external_id,
+            title=game_data.title,
+            cover_image_url=None # Can be updated later if you add an image upload feature
+        )
+        db.add(game)
+        db.commit()
+        db.refresh(game)
+        
+    # 3. Check if the user already has this game in their personal library
+    library_item = db.exec(
+        select(Library).where(
+            Library.user_id == current_user.id,
+            Library.game_id == game.id
+        )
+    ).first()
+    
+    if library_item:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT, 
+            detail="This game is already in your library."
+        )
+        
+    # 4. Link the game to the user's library with their custom stats
+    new_library_item = Library(
+        user_id=current_user.id,
+        game_id=game.id,
+        playtime_hours=game_data.playtime_hours,
+        status=game_data.status,
+        cover_image_url=game_data.cover_image_url
+    )
+    db.add(new_library_item)
+    db.commit()
+    
+    return {"message": f"Successfully added '{game.title}' to your library."}
+
+@router.patch("/{game_id}/playtime")
+async def update_playtime(
+    game_id: int,
+    playtime_data: schemas.PlaytimeUpdate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    # Find the specific game in the user's library
+    library_item = db.exec(
+        select(Library).where(
+            Library.user_id == current_user.id,
+            Library.game_id == game_id
+        )
+    ).first()
+    
+    if not library_item:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, 
+            detail="Game not found in your library."
+        )
+        
+    # Add the newly tracked hours to the total
+    library_item.playtime_hours += playtime_data.added_hours
+    
+    # Round to 2 decimal places to keep the database clean
+    library_item.playtime_hours = round(library_item.playtime_hours, 2)
+    
+    db.add(library_item)
+    db.commit()
+    db.refresh(library_item)
+    
+    return {"message": f"Added {playtime_data.added_hours} hours. Total playtime is now {library_item.playtime_hours} hours."}
+
+@router.get("/simple", response_model=list[schemas.TrackerListResponse])
+async def get_simple_library(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    # Fetch all library entries for the logged-in user
+    statement = (
+        select(Library)
+        .where(Library.user_id == current_user.id)
+        .options(selectinload(Library.game))
+    )
+    
+    library_entries = db.exec(statement).all()
+    
+    # Extract just the game_id and the game title
+    simple_list = [
+        {
+            "game_id": item.game_id, 
+            "title": item.game.title
+        } 
+        for item in library_entries if item.game
+    ]
+    
+    return simple_list

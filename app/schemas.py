@@ -79,3 +79,15 @@ class TokenData(BaseModel):
 # class Vote(BaseModel):
 #     post_id:int
 #     dir: Annotated[int, Field(strict=True, le=1)]
+class ManualGameAdd(BaseModel):
+    title: str
+    playtime_hours: float = 0.0
+    status: str = "Backlog"
+    cover_image_url: str | None = None
+
+class PlaytimeUpdate(BaseModel):
+    added_hours: float
+
+class TrackerListResponse(BaseModel):
+    game_id: int
+    title: str
