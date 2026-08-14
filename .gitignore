@@ -6,3 +6,4 @@ app/__init__.py
 docker-compose-dev.yml
 docker-compose-prod.yml
 Dockerfile
+uploads/

@@ -2,13 +2,15 @@ from fastapi import FastAPI
 from .database import engine, get_db
 from sqlmodel import SQLModel
 from sqlmodel import select
-from .routers import user, auth, library
+from .routers import user, auth, library, note
 from .config import settings
 from fastapi.middleware.cors import CORSMiddleware
+import os
+from fastapi.staticfiles import StaticFiles
 
 #SQLModel.metadata.create_all(engine)
 app = FastAPI()
-
+os.makedirs("uploads/notes", exist_ok=True)
 origins = ["*"]
 
 app.add_middleware(
@@ -18,11 +20,12 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
+app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
 
 app.include_router(user.router)
 app.include_router(auth.router)
 app.include_router(library.router)
+app.include_router(note.router)
 
 
 @app.get("/")

@@ -4,27 +4,23 @@ from sqlmodel import SQLModel, Field, Relationship
 from sqlalchemy import text # We still use text for server_default
 
 
-# class Post(SQLModel, table=True):
-#     __tablename__ = "posts" # Optional, SQLModel defaults to class name
-
+class Note(SQLModel, table=True):
+    __tablename__ = "notes"
     
-#     id: int = Field(default=None, primary_key=True)
-#     title: str = Field()
-#     content: str = Field()
+    id: int = Field(default=None, primary_key=True)
+    user_id: int = Field(foreign_key="users.id", ondelete="CASCADE")
+    game_id: int = Field(foreign_key="games.id", ondelete="CASCADE")
     
-   
-#     published: bool = Field(
-#         sa_column_kwargs={"server_default": text("True")}) 
+    title: str = Field(index=True)
+    content: Optional[str] = Field(default=None) # For text notes
+    image_url: Optional[str] = Field(default=None) # For screenshot links
     
-    
-#     created_at: Optional[datetime] = Field(
-#         default=None, 
-#         sa_column_kwargs={"server_default": text("now()")}
-#     )
-
-#     owner_id: int = Field(foreign_key="users.id", ondelete="CASCADE")
-#     owner : list["User"] = Relationship()
-    
+    created_at: Optional[datetime] = Field(
+        default=None, 
+        sa_column_kwargs={"server_default": text("now()")}
+    )
+    user: Optional["User"] = Relationship(back_populates="notes")
+    game: Optional["Game"] = Relationship(back_populates="notes")
 
 class User(SQLModel, table=True):
     __tablename__="users"
@@ -36,6 +32,7 @@ class User(SQLModel, table=True):
         sa_column_kwargs={"server_default": text("now()")}
     )
     libraries: list["Library"] = Relationship(back_populates="user")
+    notes: list["Note"] = Relationship(back_populates="user")
 
 # class Vote(SQLModel, table=True):
 #     __tablename__="votes"
@@ -50,6 +47,7 @@ class Game(SQLModel, table=True):
     title: str = Field(index=True)
     cover_image_url: Optional[str] = Field(default=None)
     libraries: list["Library"] = Relationship(back_populates="game")
+    notes: list["Note"] = Relationship(back_populates="game")
 
 class Library(SQLModel, table=True):
     __tablename__ = "libraries"

@@ -3,7 +3,7 @@ from sqlmodel import Session, select
 from ..database import get_db
 from ..models import Game, Library, User
 from ..config import settings
-from ..oauth2 import get_current_user  # Import current user dependency
+from ..oauth2 import get_current_user 
 import httpx
 import random
 from .. import schemas
@@ -167,7 +167,6 @@ async def update_playtime(
         )
         
     library_item.playtime_hours += playtime_data.added_hours
-    
 
     library_item.playtime_hours = round(library_item.playtime_hours, 2)
     
