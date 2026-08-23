@@ -44,20 +44,27 @@ async def sync_steam_library(
         games = data["response"]["games"]
         
         for item in games:
-            
             game = db.exec(select(Game).where(Game.external_id == item["appid"])).first()
+            
+            steam_image_url = f"https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/{item['appid']}/header.jpg"
+            
             if not game:
                 game = Game(
                     external_id=item["appid"],
                     title=item["name"],
+                    cover_image_url=steam_image_url
                 )
                 db.add(game)
                 db.commit()
                 db.refresh(game)
-            
+            elif not game.cover_image_url:
+
+                game.cover_image_url = steam_image_url
+                db.add(game)
+                db.commit()
+                db.refresh(game)
             
             playtime_hours = round(item.get("playtime_forever", 0) / 60.0, 1)
-            
             
             library_item = db.exec(
                 select(Library).where(
