@@ -102,19 +102,15 @@ async def add_manual_game(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    
-    
     game = db.exec(select(Game).where(Game.title.ilike(game_data.title))).first()
     
-    
     if not game:
-        
         custom_external_id = -random.randint(100000, 9999999)
         
         game = Game(
             external_id=custom_external_id,
             title=game_data.title,
-            cover_image_url=None 
+            cover_image_url=game_data.cover_image_url
         )
         db.add(game)
         db.commit()
@@ -137,8 +133,7 @@ async def add_manual_game(
         user_id=current_user.id,
         game_id=game.id,
         playtime_hours=game_data.playtime_hours,
-        status=game_data.status,
-        cover_image_url=game_data.cover_image_url
+        status=game_data.status
     )
     db.add(new_library_item)
     db.commit()
